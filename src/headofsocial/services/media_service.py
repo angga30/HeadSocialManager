@@ -9,7 +9,9 @@ The pipeline (M2-M5):
   4. composite the brand logo (M5) so it always appears correctly.
 """
 
+import asyncio
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy import select
@@ -26,6 +28,7 @@ from headofsocial.llm.media_providers import (
     get_media_provider,
     validate_media_spec,
 )
+from headofsocial.media import vision
 from headofsocial.media.postprocess import fit_to_size, overlay_logo
 from headofsocial.media.prompt_builder import build_image_prompt, build_video_prompt
 from headofsocial.storage import repos
@@ -95,21 +98,22 @@ def _target_size(channel: ChannelStyle | None) -> str:
 def _references_for(
     brand: Brand, brand_assets: list[BrandAsset], creative_brief: str
 ) -> list[BrandAsset]:
-    """Pick the real brand assets relevant to this brand's type (M4)."""
+    """Collect ALL the brand's reference assets relevant to its type (primary first) (M4).
+
+    Every matching reference photo is sent to the provider so the generated image has the
+    fullest possible grounding (multiple face angles, product shots, style refs). Logo is
+    excluded here — it is composited deterministically, never AI-generated.
+    """
     brand_type = str(brand.type)
     if brand_type == BrandType.PERSONAL:
         faces = [a for a in brand_assets if str(a.kind) == BrandAssetKind.FACE_PHOTO]
-        primary = [a for a in faces if a.is_primary]
-        return (primary or faces)[:1]
+        return sorted(faces, key=lambda a: not a.is_primary)
     if brand_type == BrandType.BUSINESS:
-        return [a for a in brand_assets if str(a.kind) == BrandAssetKind.REFERENCE_STYLE][:1]
+        refs = [a for a in brand_assets if str(a.kind) == BrandAssetKind.REFERENCE_STYLE]
+        return sorted(refs, key=lambda a: not a.is_primary)
     if brand_type == BrandType.PRODUCT:
-        brief = creative_brief.lower()
-        return [
-            a
-            for a in brand_assets
-            if str(a.kind) == BrandAssetKind.PRODUCT_PHOTO and a.label and a.label.lower() in brief
-        ][:1]
+        products = [a for a in brand_assets if str(a.kind) == BrandAssetKind.PRODUCT_PHOTO]
+        return sorted(products, key=lambda a: not a.is_primary)
     return []
 
 
@@ -153,6 +157,74 @@ def _resolve_refs(
     return (notes or None), None
 
 
+@dataclass
+class _GenContext:
+    provider: object
+    brand: Brand | None
+    channel_style: ChannelStyle | None
+    brand_assets: list[BrandAsset]
+    logo: BrandAsset | None
+    logo_config: LogoOverlay | None
+    size: str
+    supports_refs: bool
+
+
+async def _load_context(session: AsyncSession, asset: Asset, provider: object) -> _GenContext:
+    brand = await session.get(Brand, asset.brand_id)
+    channel_style = await _channel_for_asset(session, asset)
+    brand_assets = await repos.list_brand_assets(session, asset.brand_id)
+    return _GenContext(
+        provider=provider,
+        brand=brand,
+        channel_style=channel_style,
+        brand_assets=brand_assets,
+        logo=_logo_asset(brand_assets),
+        logo_config=_logo_config(brand),
+        size=_target_size(channel_style),
+        supports_refs=bool(getattr(provider, "supports_reference_images", False)),
+    )
+
+
+async def _generate_item(
+    ctx: _GenContext,
+    item: MediaSpecItem,
+    *,
+    part_index: int,
+    part_total: int,
+    fidelity_notes: str = "",
+    fidelity_subject: str = "style",
+) -> Path:
+    """Generate one spec item (image or video) and return its path."""
+    notes, refs = _resolve_refs(ctx.brand, ctx.brand_assets, item.creative_brief, ctx.supports_refs)
+    if item.media_type == MediaType.IMAGE:
+        prompt = build_image_prompt(
+            ctx.brand,
+            ctx.channel_style,
+            item.creative_brief,
+            part_index=part_index,
+            part_total=part_total,
+            reference_notes=notes,
+            fidelity_notes=fidelity_notes,
+            fidelity_subject=fidelity_subject,
+        )
+        produced = await ctx.provider.generate_image(prompt, size=ctx.size, reference_images=refs)
+        produced = fit_to_size(produced, ctx.size)
+        if ctx.logo is not None and ctx.logo_config is not None:
+            produced = overlay_logo(produced, Path(ctx.logo.file_path), ctx.logo_config)
+        return produced
+    prompt = build_video_prompt(
+        ctx.brand,
+        ctx.channel_style,
+        item.creative_brief,
+        part_index=part_index,
+        part_total=part_total,
+        reference_notes=notes,
+        fidelity_notes=fidelity_notes,
+        fidelity_subject=fidelity_subject,
+    )
+    return await ctx.provider.generate_video(prompt, reference_images=refs)
+
+
 async def generate_media(session: AsyncSession, asset: Asset) -> list[str]:
     """Generate the media in an asset's media_spec, enforcing the budget. Returns paths.
 
@@ -172,51 +244,87 @@ async def generate_media(session: AsyncSession, asset: Asset) -> list[str]:
             "text/visual/carousel, atau set HEADSOF_MEDIA_PROVIDER=mock untuk placeholder video."
         )
 
-    brand = await session.get(Brand, asset.brand_id)
-    channel_style = await _channel_for_asset(session, asset)
-    brand_assets = await repos.list_brand_assets(session, asset.brand_id)
-    logo = _logo_asset(brand_assets)
-    logo_config = _logo_config(brand)
-    size = _target_size(channel_style)
-    supports_refs = bool(getattr(provider, "supports_reference_images", False))
-
+    ctx = await _load_context(session, asset, provider)
     ordered = sorted(items, key=lambda i: i.position)
     image_items = [i for i in ordered if i.media_type == MediaType.IMAGE]
     video_items = [i for i in ordered if i.media_type == MediaType.VIDEO]
     paths: list[str] = []
 
     for index, item in enumerate(image_items):
-        notes, refs = _resolve_refs(brand, brand_assets, item.creative_brief, supports_refs)
-        prompt = build_image_prompt(
-            brand,
-            channel_style,
-            item.creative_brief,
-            part_index=index,
-            part_total=len(image_items),
-            reference_notes=notes,
-        )
-        produced = await provider.generate_image(prompt, size=size, reference_images=refs)
-        produced = fit_to_size(produced, size)
-        if logo is not None and logo_config is not None:
-            produced = overlay_logo(produced, Path(logo.file_path), logo_config)
-        paths.append(str(produced))
-
+        paths.append(str(await _generate_item(ctx, item, part_index=index, part_total=len(image_items))))
     for index, item in enumerate(video_items):
-        notes, refs = _resolve_refs(brand, brand_assets, item.creative_brief, supports_refs)
-        prompt = build_video_prompt(
-            brand,
-            channel_style,
-            item.creative_brief,
-            part_index=index,
-            part_total=len(video_items),
-            reference_notes=notes,
-        )
-        produced = await provider.generate_video(prompt, reference_images=refs)
-        paths.append(str(produced))
+        paths.append(str(await _generate_item(ctx, item, part_index=index, part_total=len(video_items))))
 
     asset.media_files = paths
     await session.commit()
     return paths
+
+
+_media_files_lock = asyncio.Lock()
+
+
+async def record_media_file(session: AsyncSession, asset_id: int, position: int, path: str) -> None:
+    """Race-free per-position write: parallel sub-agents each fill one slot in media_files."""
+    async with _media_files_lock:
+        asset = await session.get(Asset, asset_id, populate_existing=True)
+        files = list(asset.media_files or [])
+        while len(files) <= position:
+            files.append(None)
+        files[position] = path
+        asset.media_files = files
+        await session.commit()
+
+
+async def generate_media_item(
+    session: AsyncSession,
+    asset: Asset,
+    position: int,
+    *,
+    fidelity_notes: str = "",
+    fidelity_subject: str = "style",
+) -> str:
+    """Generate a single media item at `position` and record its path on the asset.
+
+    Used by the Media Generation Agent: one call per media item, run in parallel. The
+    fidelity notes come from a prior vision analysis of the reference photo.
+    """
+    spec = asset.media_spec or []
+    items = [MediaSpecItem(**s) if isinstance(s, dict) else s for s in spec]
+    check_media_budget(items)
+    ordered = sorted(items, key=lambda i: i.position)
+    item = next((i for i in ordered if i.position == position), None)
+    if item is None:
+        raise ValueError(f"Asset {asset.id} tidak punya media item di posisi {position}")
+
+    provider = get_media_provider()
+    if item.media_type == MediaType.VIDEO and not getattr(provider, "supports_video", False):
+        raise MediaNotSupportedError(
+            "Provider media aktif tidak mendukung video (fase 3). Pakai depth "
+            "text/visual/carousel, atau set HEADSOF_MEDIA_PROVIDER=mock untuk placeholder video."
+        )
+
+    ctx = await _load_context(session, asset, provider)
+    same_type = [i for i in ordered if i.media_type == item.media_type]
+    part_index = [i.position for i in same_type].index(position)
+    part_total = len(same_type)
+    path = await _generate_item(
+        ctx,
+        item,
+        part_index=part_index,
+        part_total=part_total,
+        fidelity_notes=fidelity_notes,
+        fidelity_subject=fidelity_subject,
+    )
+    await record_media_file(session, asset.id, position, str(path))
+    return str(path)
+
+
+async def analyze_reference(session: AsyncSession, asset_id: int) -> dict:
+    """Vision-analyze a brand reference asset and return a structured fidelity dict."""
+    asset = await session.get(BrandAsset, asset_id)
+    if asset is None:
+        return {"ok": False, "error": f"BrandAsset {asset_id} not found"}
+    return await vision.analyze_reference_image(Path(asset.file_path), str(asset.kind))
 
 
 def budget_summary() -> str:

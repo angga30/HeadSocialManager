@@ -14,6 +14,14 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      "/media": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/brand-assets": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   build: {

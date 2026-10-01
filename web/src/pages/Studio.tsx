@@ -6,6 +6,7 @@ import Button from "../components/ui/Button";
 import Card, { CardTitle } from "../components/ui/Card";
 import { Input, Select, Textarea } from "../components/ui/Field";
 import PageHeader from "../components/PageHeader";
+import MediaThumb from "../components/MediaThumb";
 import StatusMsg, { type MsgKind } from "../components/StatusMsg";
 
 const DEPTHS = ["text", "visual", "carousel", "motion", "series", "rich"];
@@ -150,12 +151,7 @@ export default function Studio() {
                 {a.body && <p className="my-1.5 text-sm">{a.body}</p>}
                 <div className="flex flex-wrap gap-2">
                   {a.media.map((m) => (
-                    <img
-                      key={m.filename}
-                      src={m.url}
-                      alt={m.filename}
-                      className="h-24 w-24 rounded-md border border-line object-cover"
-                    />
+                    <MediaThumb key={m.filename} media={m} />
                   ))}
                   {a.media.length === 0 && <span className="text-[13px] text-mute">tidak ada media</span>}
                 </div>

@@ -66,7 +66,7 @@ export default function Composer() {
   };
 
   return (
-    <div className="grid h-[calc(100dvh-48px)] grid-cols-[250px_1fr] items-start gap-4">
+    <div className="grid h-[calc(100dvh-48px)] grid-cols-[250px_1fr] items-stretch gap-4">
       <aside className="flex min-h-0 flex-col gap-2.5">
         <Button className="w-full" onClick={() => void convStore.create()}>
           <Plus size={15} weight="bold" /> Percakapan baru

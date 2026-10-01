@@ -3,6 +3,7 @@ import { ArrowClockwise, CheckCircle, PaperPlaneTilt, X } from "@phosphor-icons/
 import type { Post } from "../lib/api";
 import Button from "./ui/Button";
 import Markdown from "./Markdown";
+import MediaThumb from "./MediaThumb";
 
 const DOT: Record<string, string> = {
   draft: "bg-mute",
@@ -93,12 +94,7 @@ export default function PostDetail({
             <div className="mb-1.5 text-xs uppercase tracking-wide text-mute">Media</div>
             <div className="flex flex-wrap gap-2">
               {post.media.map((m) => (
-                <img
-                  key={m.filename}
-                  src={m.url}
-                  alt={m.filename}
-                  className="h-24 w-24 rounded-md border border-line object-cover"
-                />
+                <MediaThumb key={m.filename} media={m} />
               ))}
             </div>
           </div>

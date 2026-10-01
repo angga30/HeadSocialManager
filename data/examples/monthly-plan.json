@@ -1,0 +1,34 @@
+{
+  "period": "2026-03",
+  "theme": "Dari Biji ke Cangkir: Membuka Cerita di Balik Setiap Seduhan",
+  "weekly_themes": [
+    { "week": 1, "focus": "Kenalan dengan single-origin & rasio seduh dasar", "goal": "awareness" },
+    { "week": 2, "focus": "Behind the roast: proses dan pemilihan biji", "goal": "engagement" },
+    { "week": 3, "focus": "Kisah petani dan origin (Aceh & Flores)", "goal": "engagement" },
+    { "week": 4, "focus": "Komunitas & ajakan ngopi bareng", "goal": "conversion" }
+  ],
+  "cadence": {
+    "instagram": 3,
+    "threads": 2,
+    "linkedin": 2
+  },
+  "content_mix": {
+    "pillars": {
+      "Edukasi Seduh": 35,
+      "Behind the Roast": 25,
+      "Origin & Petani": 25,
+      "Komunitas": 15
+    },
+    "formats": {
+      "image": 40,
+      "carousel": 25,
+      "video": 20,
+      "text": 15
+    }
+  },
+  "key_dates": [
+    { "date": "2026-03-07", "label": "Hari Kopi Nasional (hook origin)" },
+    { "date": "2026-03-20", "label": "Rilis batch baru Flores Bajawa" },
+    { "date": "2026-03-28", "label": "Ngopi bareng komunitas bulanan" }
+  ]
+}

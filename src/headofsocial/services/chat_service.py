@@ -19,6 +19,7 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 
 from google.adk.agents import RunConfig
@@ -103,9 +104,14 @@ class ChatService:
         config = RunConfig(streaming_mode=StreamingMode.SSE)
         current_agent = ""
         displayed = ""  # text already streamed for the current model turn
+        today = datetime.now(UTC).date().isoformat()
 
         async for event in self._runner.run_async(
-            user_id=self._user_id, session_id=adk_session_id, new_message=new_message, run_config=config
+            user_id=self._user_id,
+            session_id=adk_session_id,
+            new_message=new_message,
+            state_delta={"today": today},
+            run_config=config,
         ):
             author = event.author or ""
             if author and author != "user" and author != current_agent:

@@ -1,7 +1,9 @@
-"""Content Agent — channel-native content creation with enforced media depth/budget."""
+"""Content Agent — channel-native copy + creative briefs, delegating media to a sub-agent."""
 
 from google.adk.agents import Agent
+from google.adk.tools.agent_tool import AgentTool
 
+from headofsocial.agents.media_generation_agent import create_media_generation_agent
 from headofsocial.agents.prompts import content_instruction
 from headofsocial.llm.models import get_model
 from headofsocial.tools import (
@@ -20,7 +22,8 @@ def create_content_agent() -> Agent:
         instruction=content_instruction(),
         description=(
             "Digunakan untuk membuat konten (copy native per channel), memilih kedalaman "
-            "konten (text/visual/carousel/motion/series/rich), dan generate media."
+            "konten (text/visual/carousel/motion/series/rich), lalu mendelegasikan generate "
+            "media ke media_generation_agent."
         ),
         tools=[
             brand_tools.get_brand,
@@ -28,9 +31,8 @@ def create_content_agent() -> Agent:
             calendar_tools.list_scheduled_posts,
             calendar_tools.get_post,
             media_tools.create_asset,
-            media_tools.generate_media,
-            media_tools.check_media_budget,
             media_tools.attach_asset,
             research_tools.search_web,
+            AgentTool(agent=create_media_generation_agent()),
         ],
     )

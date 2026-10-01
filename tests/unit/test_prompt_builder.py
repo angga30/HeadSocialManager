@@ -45,3 +45,11 @@ def test_no_visual_style_falls_back_to_generic_prefix():
 
     prompt = build_image_prompt(_Plain(), None, "x")
     assert "BRAND VISUAL STYLE" in prompt
+
+
+def test_anti_slop_block_always_included():
+    style = get_style(Platform.INSTAGRAM)
+    prompt = build_image_prompt(_Brand(), style, "x")
+    assert "AUTHENTICITY" in prompt
+    assert "AI slop" in prompt
+    assert "airbrushed" in prompt

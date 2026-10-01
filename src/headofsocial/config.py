@@ -19,6 +19,7 @@ _DEFAULT_ROLE_MODELS = {
     "positioning": "openai/gpt-4o",
     "planning": "openai/gpt-4o",
     "content": "openai/gpt-4o",
+    "media": "openai/gpt-4o",
     "publishing": "openai/gpt-4o-mini",
     "orchestrator": "gemini/gemini-3-flash-preview",
     "default": "gemini/gemini-3-flash-preview",
@@ -54,6 +55,7 @@ class Settings(BaseSettings):
     llm_role_positioning: str = _DEFAULT_ROLE_MODELS["positioning"]
     llm_role_planning: str = _DEFAULT_ROLE_MODELS["planning"]
     llm_role_content: str = _DEFAULT_ROLE_MODELS["content"]
+    llm_role_media: str = _DEFAULT_ROLE_MODELS["media"]
     llm_role_publishing: str = _DEFAULT_ROLE_MODELS["publishing"]
     llm_role_orchestrator: str = _DEFAULT_ROLE_MODELS["orchestrator"]
     llm_role_default: str = _DEFAULT_ROLE_MODELS["default"]
@@ -64,6 +66,7 @@ class Settings(BaseSettings):
             "positioning": self.llm_role_positioning,
             "planning": self.llm_role_planning,
             "content": self.llm_role_content,
+            "media": self.llm_role_media,
             "publishing": self.llm_role_publishing,
             "orchestrator": self.llm_role_orchestrator,
             "default": self.llm_role_default,

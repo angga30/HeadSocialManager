@@ -84,6 +84,32 @@ def _reference_block(reference_notes: list[str] | None) -> str:
     return "MATCH THESE REFERENCES: " + " | ".join(notes)
 
 
+# Always-on authenticity guard appended to every image/video prompt, so generated media
+# avoids the generic "AI slop" look (airbrushed skin, oversaturation, uncanny smoothness).
+_ANTI_SLOP = (
+    "AUTHENTICITY (mandatory): render a real, natural image — not the generic 'AI slop' look. "
+    "Use natural lighting, candid/documentary composition, real texture, and subtle organic "
+    "imperfection. AVOID: airbrushed/plastic skin, over-saturated colors, excessive HDR, "
+    "unnatural dead-center symmetry, uncanny smoothness, watermark/text artifacts, and extra "
+    "or fused fingers/limbs."
+)
+
+
+def fidelity_block(subject: str, fidelity_note: str) -> str:
+    """Explicit fidelity directive derived from a vision analysis of a reference photo (M4)."""
+    note = (fidelity_note or "").strip()
+    if not note:
+        return ""
+    directives = {
+        "person": "PRESERVE EXACT FACIAL IDENTITY (photorealistic resemblance)",
+        "logo": "LOGO IMMUTABLE — do not alter geometry, typography, or colors",
+        "product": "PRESERVE PRODUCT IDENTITY — silhouette, texture, material, identifying marks",
+        "style": "MATCH THIS REFERENCE STYLE",
+    }
+    header = directives.get(subject, directives["style"])
+    return f"{header}: {note}"
+
+
 def _assemble(
     prefix: str,
     fmt: str,
@@ -91,12 +117,15 @@ def _assemble(
     creative_brief: str,
     avoid: str,
     references: str,
+    fidelity: str = "",
 ) -> str:
-    parts = [prefix, fmt, f"{scene_label}: {creative_brief.strip()}"]
+    parts = [prefix, fmt, f"{scene_label}: {creative_brief.strip()}", _ANTI_SLOP]
     if avoid:
         parts.append(avoid)
     if references:
         parts.append(references)
+    if fidelity:
+        parts.append(fidelity)
     return "\n\n".join(part for part in parts if part)
 
 
@@ -108,6 +137,8 @@ def build_image_prompt(
     part_index: int | None = None,
     part_total: int | None = None,
     reference_notes: list[str] | None = None,
+    fidelity_notes: str = "",
+    fidelity_subject: str = "style",
 ) -> str:
     """Assemble the final image prompt from the locked style + channel format + LLM brief."""
     visual: Any = getattr(brand, "visual_style", None)
@@ -118,6 +149,7 @@ def build_image_prompt(
         creative_brief,
         avoid_block(visual),
         _reference_block(reference_notes),
+        fidelity_block(fidelity_subject, fidelity_notes),
     )
 
 
@@ -129,6 +161,8 @@ def build_video_prompt(
     part_index: int | None = None,
     part_total: int | None = None,
     reference_notes: list[str] | None = None,
+    fidelity_notes: str = "",
+    fidelity_subject: str = "style",
 ) -> str:
     """Same scaffold as images, labelled for motion so the brief describes movement."""
     visual: Any = getattr(brand, "visual_style", None)
@@ -139,4 +173,5 @@ def build_video_prompt(
         creative_brief,
         avoid_block(visual),
         _reference_block(reference_notes),
+        fidelity_block(fidelity_subject, fidelity_notes),
     )

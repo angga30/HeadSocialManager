@@ -1,8 +1,9 @@
 """Media tools — generate image/video with enforced budget (max 5 images, 2 videos per asset)."""
 
 from headofsocial.domain.enums import ContentDepth, MediaType
-from headofsocial.domain.models import Asset, Post
+from headofsocial.domain.models import Asset, BrandAsset, Post
 from headofsocial.domain.schemas import MediaSpecItem
+from headofsocial.llm.media_providers import MediaNotSupportedError
 from headofsocial.services import media_service
 from headofsocial.tools._deps import asset_to_dict, load_post, post_to_dict, run
 
@@ -125,3 +126,62 @@ async def check_media_budget(media_spec: list) -> dict:
         return {"ok": True, "message": "Within budget."}
     except media_service.BudgetExceededError as exc:
         return {"ok": False, "error": str(exc)}
+
+
+async def analyze_reference_asset(brand_id: int, asset_id: int) -> dict:
+    """Vision-analyze a brand reference photo (face/logo/product) for media fidelity.
+
+    Returns a structured identity description plus a human-readable `fidelity_note` that
+    `generate_media_item` can inject into the generation prompt.
+
+    Args:
+        brand_id: The brand the reference asset belongs to.
+        asset_id: The brand asset to analyze.
+    """
+    async def _fn(session):
+        asset = await session.get(BrandAsset, asset_id)
+        if asset is None:
+            return {"ok": False, "error": f"BrandAsset {asset_id} not found"}
+        if asset.brand_id != brand_id:
+            return {
+                "ok": False,
+                "error": f"BrandAsset {asset_id} milik brand {asset.brand_id}, bukan {brand_id}",
+            }
+        return await media_service.analyze_reference(session, asset_id)
+
+    return await run(_fn)
+
+
+async def generate_media_item(
+    asset_id: int, position: int, fidelity_notes: str = "", fidelity_subject: str = "style"
+) -> dict:
+    """Generate ONE media item at a given position in the asset's media_spec.
+
+    Called by the Media Generation Agent — one call per image/video, run in parallel.
+    `fidelity_notes` (from analyze_reference_asset) is injected into the prompt.
+
+    Args:
+        asset_id: The asset whose media_spec holds the item.
+        position: 0-based position of the item to generate.
+        fidelity_notes: Optional vision-derived identity description.
+        fidelity_subject: person | logo | product | style (drives the fidelity directive).
+    """
+    async def _fn(session):
+        asset = await session.get(Asset, asset_id)
+        if asset is None:
+            return {"ok": False, "error": f"Asset {asset_id} not found"}
+        if not (asset.media_spec or []):
+            return {"ok": False, "error": "Asset has no media_spec to generate."}
+        try:
+            path = await media_service.generate_media_item(
+                session,
+                asset,
+                position,
+                fidelity_notes=fidelity_notes,
+                fidelity_subject=fidelity_subject,
+            )
+        except (media_service.BudgetExceededError, MediaNotSupportedError, ValueError) as exc:
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "asset_id": asset.id, "position": position, "media_file": path}
+
+    return await run(_fn)

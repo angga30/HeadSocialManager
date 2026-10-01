@@ -52,6 +52,10 @@ _PLACEHOLDER_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 )
 
+# Tiny valid MP4 (1s black frame) served as the mock video placeholder so <video>
+# can actually play it instead of failing on an empty file.
+_PLACEHOLDER_VIDEO = Path(__file__).resolve().parents[1] / "media" / "placeholder.mp4"
+
 
 class MockMediaProvider:
     """Writes small placeholder media files (no network) so the UI has something to show."""
@@ -78,7 +82,7 @@ class MockMediaProvider:
     ) -> Path:
         await asyncio.sleep(0.03)
         path = self.out / f"mock_video_{uuid.uuid4().hex}.mp4"
-        path.write_bytes(b"")  # placeholder file
+        path.write_bytes(_PLACEHOLDER_VIDEO.read_bytes())
         return path
 
 

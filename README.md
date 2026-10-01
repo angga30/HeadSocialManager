@@ -1,118 +1,172 @@
-# Head of Social Media Agent
+<div align="center">
 
-Multi-agent system yang mengelola branding (personal / business / product) secara end-to-end:
-rekomendasi positioning, perencanaan konten bulanan, pembuatan konten yang disesuaikan
-per-channel (Instagram, Threads, LinkedIn), dan publishing terjadwal multi-channel.
+# 🎬 Head of Social Media Agent
 
-Dibangun di atas **Google ADK** (Agent Development Kit) dengan model multi-provider via
-LiteLLM, antarmuka **TUI** (Textual) untuk sekarang, dan service layer yang siap dipakai
-dashboard web (FastAPI) nanti.
+**Sistem multi-agent yang menjalankan branding media sosial Anda secara end-to-end.**
 
-## Fitur Utama
+Dari strategi positioning, perencanaan konten bulanan, penulisan caption native per
+channel, sampai publishing terjadwal — semua dijalankan oleh satu orkestra agent.
 
-- **Positioning Agent** — interview interaktif + baca dokumen, menghasilkan positioning
-  statement, target audience, differentiators, voice, dan content pillars.
-- **Planning Agent** — menyusun rencana editorial bulanan berbasis data (insights +
-  history konten), lalu fan-out menjadi jadwal posting.
-- **Content Agent** — menulis copy yang sesuai gaya tiap channel, dengan kedalaman konten
-  dan budget media (maks 5 gambar / 2 video per konten).
-- **Publishing Agent** — menjadwalkan & mempublikasikan posting via publisher adapter
-  (mock dulu, adapter IG/Threads/LinkedIn siap diganti).
-- **Multi-brand**, bahasa konten per brand/channel, publishing terjadwal.
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![uv](https://img.shields.io/badge/uv-managed-7C3AED?logo=astral&logoColor=white)](https://docs.astral.sh/uv/)
+[![Google ADK](https://img.shields.io/badge/Google-ADK-4285F4?logo=google&logoColor=white)](https://google.github.io/adk-docs/)
+[![LiteLLM](https://img.shields.io/badge/LiteLLM-multi--provider-0F172A)](https://docs.litellm.ai/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Prasyarat
+</div>
 
-- Python 3.12+ dan [uv](https://docs.astral.sh/uv/)
-- API key untuk provider LLM yang dipakai (Optional — Lihat `.env.example`)
+---
 
-## Setup
+**Head of Social Media Agent** adalah *AI Head of Social Media* yang menggantikan
+rutinitas manual mengelola media sosial: ia mewawancarai Anda untuk membangun positioning,
+menyusun kalender konten berbasis data, menulis copy yang terasa *native* di tiap platform
+(Instagram, Threads, LinkedIn), membuat visual yang konsisten dengan identitas brand, lalu
+menjadwalkan dan mempublikasikannya.
 
-```bash
-uv sync
-cp .env.example .env      # lalu isi API key yang kamu pakai
+Dibangun di atas **Google ADK** (Agent Development Kit), model LLM multi-provider lewat
+**LiteLLM** (Gemini, OpenAI, Anthropic, OpenRouter, Ollama, dst.), antarmuka **TUI** (Textual)
+dan **Web Dashboard** (React + FastAPI).
+
+---
+
+## ✨ Fitur
+
+| Agent | Tugas |
+| --- | --- |
+| 🧭 **Positioning Agent** | Interview interaktif + baca dokumen → positioning statement, target audience, differentiators, voice, content pillars, dan identitas visual terkunci. |
+| 📅 **Planning Agent** | Menyusun rencana editorial bulanan *evidence-driven* (insights + history + riset), lalu *fan-out* jadi slot posting. |
+| ✍️ **Content Agent** | Menulis caption native per channel dengan budget media yang ditegakkan keras (maks 5 gambar / 2 video). |
+| 🎨 **Media Generation Agent** | Generate gambar/video dari brief + foto referensi brand, dengan *fidelity* ketat (identitas wajah/logo/produk terjaga). |
+| 🚀 **Publishing Agent** | Jadwalkan, approve, dan publish via adapter publisher (mock dulu, adapter nyata siap dipasang). |
+
+**Sorotan:**
+
+- 🔀 **Multi-brand** — kelola banyak brand (personal/business/product) dengan bahasa per brand/channel.
+- 🗓️ **Publishing terjadwal** — scheduler otomatis mempublish posting yang jatuh tempo.
+- 🎯 **Copy native per channel** — gaya berbeda untuk IG (visual+emoji), Threads (pendek+diskusi), LinkedIn (profesional).
+- 🔒 **Identitas visual terkunci** — kode yang memegang style, LLM hanya mengisi bagian kreatif, sehingga setiap post konsisten.
+- 💬 **Web Dashboard + TUI** — Composer streaming, Brands, Channels, Studio, Calendar, Insights.
+
+---
+
+## 🧠 Arsitektur Agent
+
+```
+User ──▶ Root Agent (router)
+              │  transfer
+              ▼
+   ┌────────────────────────────────────────────┐
+   │ Positioning ─▶ Planning ─▶ Content ─▶ Publishing │
+   │      │             │           │            │      │
+   │      ▼             ▼           ▼            ▼      │
+   │  brands.*     plans/posts   assets.*    posts.status│
+   └────────────────────────────────────────────┘
+              │
+              ▼
+   Media Generation Agent (parallel per item)
 ```
 
-## Menjalankan
+Alur data: **Positioning** membangun brand → **Planning** membuat rencana bulanan → **Content**
+menulis caption + mendelegasikan media → **Publishing** menjadwalkan & mempublikasikan.
+
+*Detail lengkap: [docs/architecture.md](docs/architecture.md) dan [DESIGN_SPEC.md](DESIGN_SPEC.md).*
+
+---
+
+## 🚀 Quickstart
+
+### Prasyarat
+
+- **Python 3.12+** dan **[uv](https://docs.astral.sh/uv/)**
+- API key provider LLM (opsional — lihat [.env.example](.env.example))
+
+### Instalasi
+
+```bash
+git clone <repo-url> && cd HeadOfSocialMediaAgent
+uv sync
+cp .env.example .env      # isi API key yang kamu pakai
+```
+
+### Menjalankan
 
 ```bash
 make install   # uv sync
-make tui       # jalankan TUI (streaming root agent + CRUD brand/kalender)
-make api       # jalankan FastAPI (REST API + SSE chat, /api/healthz)
-make web       # jalankan web dashboard (FastAPI + Vite dev server)
+make tui       # TUI (streaming root agent + CRUD brand/kalender)
+make api       # FastAPI (REST API + SSE chat, /api/healthz)
+make web       # Web dashboard (FastAPI + Vite dev server)
 make test      # pytest
+make lint      # ruff
 ```
 
-## Web Dashboard
+Tanpa API key pun aplikasi tetap bisa dijalankan (media provider default `mock` menghasilkan
+placeholder tanpa jaringan).
 
-- `make web` — API di `http://localhost:8080`, frontend React (Vite) membuka browser.
-- Halaman: Composer, Brands, Channels, Studio, Calendar, Insights.
-- Build untuk produksi: `make web-build` (Vite build disajikan FastAPI di `/app/`).
+---
 
-### Composer
+## 📦 Contoh (Contoh Data)
 
-- **Multi-conversation** — banyak percakapan; pindah/buka halaman lain tidak menghentikan
-  proses yang sedang jalan. Riwayat & konteks agent disimpan di server (tahan restart).
-- **Streaming & transparansi** — balasan mengalir kata-per-kata; nama agent aktif, langkah
-  tool (collapsible, ala "steps"), dan indikator status tampil selama agent bekerja.
-- **Kontrol** — **Stop** benar-benar menghentikan run di server (balasan parsial ditandai
-  `(dihentikan)`); **ulangi/retry** pesan terakhir atau dari **banner error**; judul
-  percakapan otomatis dari pesan pertama.
-- **Status** — `sedang memproses` / `siap` / `berhenti·error` per percakapan.
-- **Markdown** — balasan agent dirender (list, tabel, bold, link) dengan **syntax highlight**
-  dan tombol **copy** per code block; hover pesan untuk copy seluruh balasan.
-- **Auto-scroll** — mengikuti stream selama user di bawah, plus tombol ↓ saat scroll ke atas,
-  dan **suggested prompts** di percakapan kosong.
-- **Mention** — ketik `@` untuk menyebut brand/channel/post; entitas itu jadi konteks agent.
+Untuk melihat bentuk nyata dari *output* sistem, repo ini menyertakan contoh yang siap dibaca
+langsung oleh agent di dalam folder `data/`:
 
-TUI (`make tui`) memakai protokol stream yang sama: balasan streaming + indikator status, dan
-memuat riwayat percakapan terakhir saat dibuka.
+| Path | Isi |
+| --- | --- |
+| [`data/docs/company-profile.md`](data/docs/company-profile.md) | Contoh dokumen positioning yang bisa dibaca Positioning Agent. |
+| [`data/examples/positioning.json`](data/examples/positioning.json) | Contoh output rekomendasi positioning (lengkap dengan visual style). |
+| [`data/examples/monthly-plan.json`](data/examples/monthly-plan.json) | Contoh rencana konten bulanan. |
+| [`data/examples/captions/`](data/examples/captions/) | Contoh caption native untuk pillar yang sama di Instagram, Threads, dan LinkedIn. |
+| [`data/media/README.md`](data/media/README.md) | Struktur & konvensi nama media hasil generate + contoh creative brief. |
 
-## Log & Observability
+Lihat [`data/examples/README.md`](data/examples/README.md) untuk penjelasan lengkap.
 
-Setiap run agent mencatat jejak prosesnya (agent apa, memanggil tool apa, iterasi ke berapa,
-transfer antar-agent, dan ringkasan durasi) lewat plugin `AgentTracePlugin`.
+---
+
+## 🏗️ Struktur Proyek
+
+```
+src/headofsocial/
+  config.py            # settings + media budget + LLM role map
+  domain/              # enums, SQLAlchemy models, pydantic schemas
+  storage/             # async engine/session, repos
+  channels/styles.py   # per-platform style profiles (IG/Threads/LinkedIn)
+  publishing/          # Publisher protocol + mock/stubs
+  services/            # brand, channel, planning, analytics, media, publishing, scheduler
+  tools/               # ADK tools wrapping services
+  agents/              # root + positioning/planning/content/media/publishing
+  media/               # prompt builder, postprocess, vision
+  tui/                 # Textual screens
+  api/                 # FastAPI: REST + SSE chat + SPA
+web/                   # React + Vite SPA
+data/                  # database, dokumen, media, contoh (sebagian di-commit)
+tests/                 # unit + integration
+```
+
+---
+
+## 🧪 Testing
 
 ```bash
-tail -f data/logs/app.log        # TUI: log ke file saja
-# make api / make web: juga tampil di konsol
+uv run pytest           # semua test
+uv run ruff check .     # lint
 ```
 
-Contoh keluaran:
+---
 
-```
-▶ RUN start | session=conv-1 inv=e-c1ad82
-  ▶ agent: root_agent
-    · llm call #1 (agent=root_agent, iterasi ke-1)
-    · tool: transfer_to_agent(agent_name='content_agent')
-    ⇄ transfer: root_agent → content_agent
-    ▶ agent: content_agent
-      · llm call #2 (agent=content_agent, iterasi ke-1)
-      · tool: get_post(post_id=1)
-      ← get_post (0.01s) → ok (2 field)
-      · tool: create_asset(brand_id=1, depth='visual', image_briefs=[1 item])
-      ← create_asset (0.00s) → id=1, status=draft
-      · tool: generate_media(asset_id=1)
-      ← generate_media (6.29s) → asset_id=1
-      · tool: attach_asset(post_id=1, asset_id=1)
-      ← attach_asset (0.01s) → ok (2 field)
-    ◀ agent: content_agent
-✅ RUN done in 31.0s | llm=8 | tool=7 | agents=[root_agent → content_agent]
-```
+## 📚 Dokumentasi
 
-Logger: `headofsocial.agent_trace` (lihat `src/headofsocial/agents/trace_plugin.py`).
+- [DESIGN_SPEC.md](DESIGN_SPEC.md) — spesifikasi & kriteria sukses.
+- [docs/architecture.md](docs/architecture.md) — arsitektur berlapis & alur data.
+- [docs/agent-architecture-plan.md](docs/agent-architecture-plan.md) — rencana arsitektur agent.
+- [docs/chat-ux-plan.md](docs/chat-ux-plan.md) — desain UX composer.
 
-### Troubleshooting
+---
 
-- **`attempt to write a readonly database`** — SQLite tidak bisa menulis. Penyebab umum:
-  folder `data/` tidak writable, **atau file DB dihapus/dipindah saat server masih berjalan**
-  (handle-nya menunjuk file yang sudah hilang). Perbaikan: hentikan server, pastikan `data/`
-  bisa ditulis (atau `rm -rf data && mkdir data`), lalu jalankan ulang. Jangan menghapus
-  `data/` selama server jalan.
-- Path DB selalu absolut (`data/headofsocial.db` di root project), jadi tidak bergantung CWD.
-- SQLite memakai **WAL + busy_timeout** karena ada dua engine yang menulis file yang sama
-  (engine aplikasi + `DatabaseSessionService` milik ADK).
+## 🤝 Kontribusi
 
-## Dokumentasi
+Kontribusi sangat diterima. Silakan buka issue untuk diskusi atau kirim pull request.
 
-- `DESIGN_SPEC.md` — spesifikasi lengkap dan arsitektur.
-- `docs/architecture.md` — detail arsitektur berlapis.# HeadSocialManager
+---
+
+## 📄 Lisensi
+
+[MIT](LICENSE)

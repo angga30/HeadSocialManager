@@ -63,6 +63,7 @@ export interface Plan {
 export interface Media {
   filename: string;
   url: string;
+  kind?: "image" | "video";
 }
 
 export interface Post {

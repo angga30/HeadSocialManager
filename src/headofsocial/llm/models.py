@@ -11,7 +11,9 @@ from headofsocial.config import settings
 # other roles (OpenAI/Anthropic/Ollama). Silence ADK's nudge to use its native Gemini.
 os.environ.setdefault("ADK_SUPPRESS_GEMINI_LITELLM_WARNINGS", "true")
 
-_ROLES = frozenset({"positioning", "planning", "content", "publishing", "orchestrator", "default"})
+_ROLES = frozenset(
+    {"positioning", "planning", "content", "media", "publishing", "orchestrator", "default"}
+)
 
 
 @cache

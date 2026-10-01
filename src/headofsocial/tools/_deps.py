@@ -102,12 +102,16 @@ def plan_to_dict(plan: Plan) -> dict:
     }
 
 
+_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v"}
+
+
 def media_url(path: str) -> dict:
     """Map a stored media path to a served URL (FastAPI mounts data/media at /media)."""
     from pathlib import Path
 
     name = Path(path).name
-    return {"filename": name, "url": f"/media/{name}"}
+    kind = "video" if Path(path).suffix.lower() in _VIDEO_EXTS else "image"
+    return {"filename": name, "url": f"/media/{name}", "kind": kind}
 
 
 def post_to_dict(post: Post) -> dict:
