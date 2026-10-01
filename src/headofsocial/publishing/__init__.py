@@ -1,0 +1,1 @@
+"""Publisher adapters (mock-first, real platform stubs ready)."""

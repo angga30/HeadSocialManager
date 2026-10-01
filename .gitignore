@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# uv
+.uv/
+
+# Project data (sqlite, docs, generated media)
+data/
+*.db
+*.sqlite3
+
+# Env
+.env
+
+# Web frontend
+web/node_modules/
+web/dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.commandcode/
