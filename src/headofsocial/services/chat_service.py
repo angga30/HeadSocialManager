@@ -85,8 +85,12 @@ class ChatService:
             app_name=APP_NAME, user_id=self._user_id, session_id=adk_session_id
         )
         if existing is None:
+            # S3: seed the active-brand state key so instruction templating always resolves.
             await self._session_service.create_session(
-                app_name=APP_NAME, user_id=self._user_id, session_id=adk_session_id
+                app_name=APP_NAME,
+                user_id=self._user_id,
+                session_id=adk_session_id,
+                state={"active_brand_id": "belum dipilih"},
             )
 
     async def _agent_events(self, adk_session_id: str, text: str) -> AsyncGenerator[ChatEvent, None]:

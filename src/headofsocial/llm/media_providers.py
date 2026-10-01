@@ -3,6 +3,11 @@
 Phase 2 ships real image generation via LiteLLM (Gemini Imagen / OpenAI gpt-image).
 Video (Replicate/Runway/Veo) is Phase 3. The mock provider stays the default so the app
 runs without credentials; set MEDIA_PROVIDER=litellm to generate real images.
+
+M4 extends the protocol with **capability flags** (`supports_video`,
+`supports_reference_images`) and a keyword-only `size` + `reference_images`, so
+`media_service` can stay provider-agnostic: it either passes reference images straight
+through, or falls back to describing them textually in the prompt.
 """
 
 import asyncio
@@ -24,9 +29,22 @@ class MediaNotSupportedError(RuntimeError):
 
 class MediaProvider(Protocol):
     supports_video: bool
+    supports_reference_images: bool
 
-    async def generate_image(self, prompt: str, n: int = 1) -> list[Path]: ...
-    async def generate_video(self, prompt: str, n: int = 1) -> list[Path]: ...
+    async def generate_image(
+        self,
+        prompt: str,
+        *,
+        size: str = "",
+        reference_images: list[Path] | None = None,
+    ) -> Path: ...
+    async def generate_video(
+        self,
+        prompt: str,
+        *,
+        size: str = "",
+        reference_images: list[Path] | None = None,
+    ) -> Path: ...
 
 
 # 1x1 dark-gray PNG used as a visible placeholder by the mock provider.
@@ -39,28 +57,29 @@ class MockMediaProvider:
     """Writes small placeholder media files (no network) so the UI has something to show."""
 
     supports_video = True
+    supports_reference_images = True  # accepts and ignores (logged) — M4
 
     def __init__(self) -> None:
         self.out = settings.resolved_data_dir / "media"
         self.out.mkdir(parents=True, exist_ok=True)
 
-    async def generate_image(self, prompt: str, n: int = 1) -> list[Path]:
-        await asyncio.sleep(0.02 * n)
-        paths: list[Path] = []
-        for _ in range(n):
-            path = self.out / f"mock_img_{uuid.uuid4().hex}.png"
-            path.write_bytes(_PLACEHOLDER_PNG)
-            paths.append(path)
-        return paths
+    async def generate_image(
+        self, prompt: str, *, size: str = "", reference_images: list[Path] | None = None
+    ) -> Path:
+        await asyncio.sleep(0.02)
+        if reference_images:
+            logger.debug("Mock provider ignoring %d reference image(s)", len(reference_images))
+        path = self.out / f"mock_img_{uuid.uuid4().hex}.png"
+        path.write_bytes(_PLACEHOLDER_PNG)
+        return path
 
-    async def generate_video(self, prompt: str, n: int = 1) -> list[Path]:
-        await asyncio.sleep(0.03 * n)
-        paths: list[Path] = []
-        for _ in range(n):
-            path = self.out / f"mock_video_{uuid.uuid4().hex}.mp4"
-            path.write_bytes(b"")  # placeholder file
-            paths.append(path)
-        return paths
+    async def generate_video(
+        self, prompt: str, *, size: str = "", reference_images: list[Path] | None = None
+    ) -> Path:
+        await asyncio.sleep(0.03)
+        path = self.out / f"mock_video_{uuid.uuid4().hex}.mp4"
+        path.write_bytes(b"")  # placeholder file
+        return path
 
 
 class LiteLLMMediaProvider:
@@ -72,61 +91,80 @@ class LiteLLMMediaProvider:
         self.out = settings.resolved_data_dir / "media"
         self.out.mkdir(parents=True, exist_ok=True)
 
-    async def generate_image(self, prompt: str, n: int = 1) -> list[Path]:
+    @property
+    def supports_reference_images(self) -> bool:
+        """Only the multimodal (chat-completion) path can take reference images (M4)."""
+        return settings.media_image_model.startswith("openrouter/")
+
+    async def generate_image(
+        self, prompt: str, *, size: str = "", reference_images: list[Path] | None = None
+    ) -> Path:
         # OpenRouter exposes image models through chat completions (image modality), not
         # the /images/generations endpoint, so route it separately.
         if settings.media_image_model.startswith("openrouter/"):
-            paths = await self._generate_image_openrouter(prompt, n)
+            path = await self._generate_image_openrouter(prompt, reference_images)
         else:
-            paths = await self._generate_image_endpoint(prompt, n)
-        logger.info("Generated %d image(s) via %s", len(paths), settings.media_image_model)
-        return paths
+            path = await self._generate_image_endpoint(prompt, size)
+        logger.info("Generated 1 image via %s", settings.media_image_model)
+        return path
 
-    async def _generate_image_endpoint(self, prompt: str, n: int) -> list[Path]:
+    async def _generate_image_endpoint(self, prompt: str, size: str) -> Path:
         """Providers with an images endpoint (OpenAI, Gemini Imagen, ...)."""
         import litellm
 
-        kwargs: dict = {"model": settings.media_image_model, "prompt": prompt, "n": n}
-        if settings.media_image_size:
-            kwargs["size"] = settings.media_image_size
+        kwargs: dict = {"model": settings.media_image_model, "prompt": prompt, "n": 1}
+        chosen_size = size or settings.media_image_size
+        if chosen_size:
+            kwargs["size"] = chosen_size
 
         response = await litellm.aimage_generation(**kwargs)
-        paths: list[Path] = []
         for item in response.data:
             data = self._item_bytes(item)
             if data is not None:
-                paths.append(self._write(data))
-        if not paths:
-            raise RuntimeError("Image provider returned no usable images (b64_json/url).")
-        return paths
+                return self._write(data)
+        raise RuntimeError("Image provider returned no usable image (b64_json/url).")
 
-    async def _generate_image_openrouter(self, prompt: str, n: int) -> list[Path]:
+    async def _generate_image_openrouter(
+        self, prompt: str, reference_images: list[Path] | None
+    ) -> Path:
         """OpenRouter image models: chat completion with modalities=["image","text"]."""
         import litellm
 
-        paths: list[Path] = []
-        for _ in range(max(1, n)):
-            response = await litellm.acompletion(
-                model=settings.media_image_model,
-                messages=[{"role": "user", "content": prompt}],
-                modalities=["image", "text"],
-            )
-            message = response.choices[0].message
-            for url in self._extract_image_urls(message):
-                data = self._bytes_from_url(url)
-                if data is not None:
-                    paths.append(self._write(data))
-        if not paths:
-            raise RuntimeError(
-                "OpenRouter returned no images. Pastikan model mendukung output image "
-                "(mis. openrouter/google/gemini-2.5-flash-image) dan key valid."
-            )
-        return paths
+        content: list[dict] = [{"type": "text", "text": prompt}]
+        for ref in reference_images or []:
+            data_url = self._file_to_data_url(ref)
+            if data_url:
+                content.append({"type": "image_url", "image_url": {"url": data_url}})
+
+        response = await litellm.acompletion(
+            model=settings.media_image_model,
+            messages=[{"role": "user", "content": content}],
+            modalities=["image", "text"],
+        )
+        message = response.choices[0].message
+        for url in self._extract_image_urls(message):
+            data = self._bytes_from_url(url)
+            if data is not None:
+                return self._write(data)
+        raise RuntimeError(
+            "OpenRouter returned no images. Pastikan model mendukung output image "
+            "(mis. openrouter/google/gemini-2.5-flash-image) dan key valid."
+        )
 
     def _write(self, data: bytes) -> Path:
         path = self.out / f"img_{uuid.uuid4().hex}.png"
         path.write_bytes(data)
         return path
+
+    @staticmethod
+    def _file_to_data_url(path: Path) -> str | None:
+        try:
+            raw = Path(path).read_bytes()
+        except OSError:
+            return None
+        suffix = Path(path).suffix.lower().lstrip(".") or "png"
+        mime = "image/jpeg" if suffix in ("jpg", "jpeg") else f"image/{suffix}"
+        return f"data:{mime};base64,{base64.b64encode(raw).decode()}"
 
     @staticmethod
     def _extract_image_urls(message) -> list[str]:
@@ -153,7 +191,9 @@ class LiteLLMMediaProvider:
             return httpx.get(url, timeout=60).content
         return None
 
-    async def generate_video(self, prompt: str, n: int = 1) -> list[Path]:
+    async def generate_video(
+        self, prompt: str, *, size: str = "", reference_images: list[Path] | None = None
+    ) -> Path:
         raise MediaNotSupportedError(
             "Provider ini belum mendukung video (fase 3). Gunakan depth text/visual/carousel, "
             "atau set HEADSOF_MEDIA_PROVIDER=mock untuk placeholder video."

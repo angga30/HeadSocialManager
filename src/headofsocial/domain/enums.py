@@ -59,3 +59,21 @@ class PostStatus(StrEnum):
 class MediaProviderKind(StrEnum):
     MOCK = "mock"
     LITELLM = "litellm"
+
+
+class BrandAssetKind(StrEnum):
+    """Kinds of real brand assets a user can upload (M1)."""
+
+    FACE_PHOTO = "face_photo"
+    LOGO = "logo"
+    LOGO_DARK = "logo_dark"
+    PRODUCT_PHOTO = "product_photo"
+    REFERENCE_STYLE = "reference_style"
+
+
+class ResearchKind(StrEnum):
+    """Categories of cached research notes (R1)."""
+
+    TRENDS = "trends"
+    COMPETITORS = "competitors"
+    WEB = "web"

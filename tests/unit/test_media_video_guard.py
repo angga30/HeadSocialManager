@@ -29,8 +29,8 @@ async def test_generate_media_service_rejects_video(session, brand, monkeypatch)
         type="mixed",
         depth=ContentDepth.RICH,
         media_spec=[
-            {"media_type": "image", "prompt": "cover", "position": 0},
-            {"media_type": "video", "prompt": "reel", "position": 1},
+            {"media_type": "image", "creative_brief": "cover", "position": 0},
+            {"media_type": "video", "creative_brief": "reel", "position": 1},
         ],
     )
     session.add(asset)
@@ -46,7 +46,7 @@ async def test_generate_media_tool_returns_error_not_raise(session, brand, monke
         brand_id=brand.id,
         type="video",
         depth=ContentDepth.MOTION,
-        media_spec=[{"media_type": "video", "prompt": "reel", "position": 0}],
+        media_spec=[{"media_type": "video", "creative_brief": "reel", "position": 0}],
     )
     session.add(asset)
     await session.commit()

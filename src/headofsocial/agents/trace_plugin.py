@@ -100,6 +100,7 @@ class AgentTracePlugin(BasePlugin):
             "stack": [],
             "agent_iters": {},
             "tool_starts": {},
+            "agent_starts": [],
         }
         logger.info("▶ RUN start | session=%s inv=%s", session_id, key[:8])
         return None
@@ -123,6 +124,7 @@ class AgentTracePlugin(BasePlugin):
         if rec is not None:
             rec["stack"].append(agent.name)
             rec["agents"].append(agent.name)
+            rec["agent_starts"].append((agent.name, time.monotonic()))
             depth = len(rec["stack"]) - 1
             logger.info("%s▶ agent: %s", "  " * (depth + 1), agent.name)
         return None
@@ -131,8 +133,10 @@ class AgentTracePlugin(BasePlugin):
         rec = self._run(callback_context)
         if rec is not None and rec["stack"]:
             rec["stack"].pop()
+            started = rec["agent_starts"].pop()[1] if rec["agent_starts"] else None
             depth = len(rec["stack"])
-            logger.info("%s◀ agent: %s", "  " * (depth + 1), agent.name)
+            dur = f" ({time.monotonic() - started:.2f}s)" if started else ""
+            logger.info("%s◀ agent: %s%s", "  " * (depth + 1), agent.name, dur)
         return None
 
     # --- model calls -----------------------------------------------------

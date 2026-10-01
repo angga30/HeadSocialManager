@@ -89,7 +89,7 @@ Contoh keluaran:
       · llm call #2 (agent=content_agent, iterasi ke-1)
       · tool: get_post(post_id=1)
       ← get_post (0.01s) → ok (2 field)
-      · tool: create_asset(brand_id=1, depth='visual', image_prompts=[1 item])
+      · tool: create_asset(brand_id=1, depth='visual', image_briefs=[1 item])
       ← create_asset (0.00s) → id=1, status=draft
       · tool: generate_media(asset_id=1)
       ← generate_media (6.29s) → asset_id=1

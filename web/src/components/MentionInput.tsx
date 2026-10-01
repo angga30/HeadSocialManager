@@ -104,27 +104,30 @@ export default function MentionInput({ value, onChange, onSubmit, disabled }: Pr
   };
 
   return (
-    <div className="mention-wrap">
+    <div className="relative flex-1">
       <textarea
         ref={ref}
-        className="mention-input"
         rows={1}
         placeholder="Ketik pesan… @ untuk mention brand/channel/post"
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
+        className="input max-h-40 resize-none py-2.5"
       />
       {open && (
-        <div className="mention-popover">
+        <div className="absolute bottom-full left-0 right-0 z-20 mb-1.5 max-h-60 overflow-y-auto rounded-lg border border-line bg-panel shadow-xl shadow-black/40">
           {options.map((o, i) => (
             <button
               key={`${o.type}:${o.id}`}
-              className={i === active ? "active" : ""}
+              type="button"
               onMouseDown={(e) => {
                 e.preventDefault();
                 insert(o);
               }}
+              className={`block w-full px-3 py-2 text-left text-[13px] text-ink ${
+                i === active ? "bg-panel2" : "hover:bg-panel2"
+              }`}
             >
               <span className={`mention-badge ${o.type}`}>{o.type}</span> {o.label}
             </button>

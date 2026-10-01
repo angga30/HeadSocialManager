@@ -1,5 +1,6 @@
 """Publishing: resolve a publisher adapter, publish a post, record result + simulate metrics."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,32 @@ from headofsocial.domain.enums import PostStatus
 from headofsocial.domain.models import Post, PostMetrics
 from headofsocial.publishing.base import get_registry
 from headofsocial.publishing.mock import simulate_metrics
+
+
+@dataclass
+class PublishAsset:
+    """Transient, publish-ready view of an asset (research sources already stripped, R3)."""
+
+    id: int
+    body: str | None
+
+
+def strip_research_sources(body: str | None) -> str | None:
+    """Drop draft-only source lines ("Sumber: <url>") before the final publish (R3).
+
+    Sources stay in the stored draft for human review; they are not part of the published copy.
+    """
+    if not body:
+        return body
+    kept = [line for line in body.splitlines() if not line.strip().lower().startswith("sumber:")]
+    return "\n".join(kept).strip()
+
+
+def _publish_view(post: Post) -> PublishAsset | None:
+    """A publish-ready view whose body has research sources stripped (stored draft untouched)."""
+    if post.asset is None:
+        return None
+    return PublishAsset(id=post.asset.id, body=strip_research_sources(post.asset.body))
 
 
 async def publish_post(session: AsyncSession, post: Post) -> Post:
@@ -22,7 +49,7 @@ async def publish_post(session: AsyncSession, post: Post) -> Post:
     publisher = get_registry().get(platform)
 
     try:
-        result = await publisher.publish(post, post.asset)
+        result = await publisher.publish(post, _publish_view(post))
         post.status = PostStatus.PUBLISHED
         post.publish_result = result.to_dict()
         post.published_at = datetime.now(UTC).replace(tzinfo=None)

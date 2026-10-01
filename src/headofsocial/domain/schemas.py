@@ -3,9 +3,42 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from headofsocial.domain.enums import ContentDepth, MediaType, Platform
+
+# --- Visual identity (M1) ---
+_HEX_RE = r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+
+
+class LogoOverlay(BaseModel):
+    """Deterministic logo compositing config (M5)."""
+
+    position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = "bottom-right"
+    opacity: float = Field(default=0.85, ge=0.0, le=1.0)
+    margin: int = Field(default=24, ge=0, description="Pixel margin from the chosen corner.")
+
+
+class VisualStyle(BaseModel):
+    """Locked, structured visual identity. Rendered verbatim into every media prompt (M1/M2)."""
+
+    palette: list[str] = Field(default_factory=list, description="2-4 brand hex colors.")
+    style_keywords: list[str] = Field(default_factory=list)
+    image_tone: str = Field(default="", description="bright | dark | muted | vibrant.")
+    typography_hint: str = Field(default="")
+    avoid: list[str] = Field(default_factory=list)
+    render_style: str = Field(default="", description="photography | flat-illustration | 3d | mixed.")
+    logo_overlay: LogoOverlay | None = None
+
+    @field_validator("palette")
+    @classmethod
+    def _palette_is_hex(cls, values: list[str]) -> list[str]:
+        import re
+
+        for value in values:
+            if not re.match(_HEX_RE, value):
+                raise ValueError(f"palette color must be hex like #1A1A2E (got {value!r})")
+        return values
 
 
 # --- Positioning ---
@@ -17,12 +50,17 @@ class PositioningRecommendation(BaseModel):
     content_pillars: list[dict] = Field(
         description="3-5 pillars, each {name: str, angle: str, example_angles: list[str]}."
     )
+    visual_style: VisualStyle | None = Field(
+        default=None, description="Locked visual identity (palette, keywords, tone, render style)."
+    )
 
 
 # --- Media spec / depth ---
 class MediaSpecItem(BaseModel):
     media_type: MediaType
-    prompt: str = Field(description="Detailed image/video generation prompt.")
+    creative_brief: str = Field(
+        description="Creative-only brief (subject/scene/mood). Visual style lives in the brand."
+    )
     position: int = Field(default=0, description="Order within the asset (0-based).")
 
 

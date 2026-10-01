@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # Media provider: "mock" | "litellm".
     media_provider: str = "mock"
 
+    # Web research (Tavily). provider "none" disables research gracefully.
+    research_provider: str = "tavily"
+    tavily_api_key: str = ""
+    max_research_queries_per_run: int = 10
+    research_cache_ttl_days: int = 7
+
     # Image-generation model (LiteLLM string). Used when media_provider=litellm.
     # Examples: gemini/imagen-3.0-generate-002, openai/gpt-image-1, vertex_ai/imagen-3.0-generate-002
     media_image_model: str = "gemini/imagen-3.0-generate-002"
@@ -69,6 +75,10 @@ class Settings(BaseSettings):
         if not p.is_absolute():
             p = _PROJECT_ROOT / p
         return p.resolve()
+
+    @property
+    def resolved_brand_assets_dir(self) -> Path:
+        return self.resolved_data_dir / "brand_assets"
 
     @property
     def resolved_db_url(self) -> str:

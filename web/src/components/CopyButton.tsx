@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { Check, Copy } from "@phosphor-icons/react";
+import { cn } from "../lib/cn";
 
 // Small clipboard button used per code block and per message.
 export default function CopyButton({
   text,
   label = "Copy",
-  className = "",
+  className,
 }: {
   text: string;
   label?: string;
@@ -35,8 +37,25 @@ export default function CopyButton({
   };
 
   return (
-    <button type="button" className={`copy-btn ${className}`} title={label} aria-label={label} onClick={copy}>
-      {copied ? "✓ tersalin" : "⧉ copy"}
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={copy}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-sm border border-line bg-panel px-2 py-0.5 text-[11px] text-mute transition-colors hover:border-accent hover:text-ink",
+        className
+      )}
+    >
+      {copied ? (
+        <>
+          <Check size={11} weight="bold" className="text-ok" /> tersalin
+        </>
+      ) : (
+        <>
+          <Copy size={11} /> copy
+        </>
+      )}
     </button>
   );
 }

@@ -61,6 +61,8 @@ async def get_channel_style(brand_id: int, platform: str) -> dict:
             "caption_limit_chars": style.caption_limit_chars,
             "hashtag_range": list(style.hashtag_range),
             "emoji_level": style.emoji_level,
+            "image_aspect": style.image_aspect,
+            "image_size": style.image_size,
             "suggested_depths": [d.value for d in style.suggested_depths],
             "style_instruction": style_instruction_block(style, brand.language),
         }

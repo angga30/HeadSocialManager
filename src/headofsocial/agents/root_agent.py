@@ -21,6 +21,7 @@ def create_root_agent(history_note: str = "") -> Agent:
         tools=[
             brand_tools.list_brands,
             brand_tools.get_brand,
+            brand_tools.set_active_brand,
             channel_tools.list_channels,
         ],
         sub_agents=[

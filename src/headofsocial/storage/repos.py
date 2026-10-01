@@ -11,10 +11,12 @@ from sqlalchemy.orm import selectinload
 from headofsocial.domain.models import (
     Asset,
     Brand,
+    BrandAsset,
     Channel,
     Plan,
     Post,
     PostMetrics,
+    ResearchNote,
 )
 
 _POST_OPTIONS = (selectinload(Post.channel), selectinload(Post.asset), selectinload(Post.plan))
@@ -74,3 +76,27 @@ async def list_assets(session: AsyncSession, brand_id: int | None = None) -> lis
         stmt = stmt.where(Asset.brand_id == brand_id)
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def list_brand_assets(session: AsyncSession, brand_id: int | None = None) -> list[BrandAsset]:
+    stmt = select(BrandAsset).order_by(BrandAsset.created_at)
+    if brand_id is not None:
+        stmt = stmt.where(BrandAsset.brand_id == brand_id)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def find_research_note(
+    session: AsyncSession, brand_id: int, kind: str, query: str, since: object
+) -> ResearchNote | None:
+    """Return a cached research note newer than `since` (TTL), else None."""
+    stmt = (
+        select(ResearchNote)
+        .where(ResearchNote.brand_id == brand_id)
+        .where(ResearchNote.kind == kind)
+        .where(ResearchNote.query == query)
+        .where(ResearchNote.created_at >= since)
+        .order_by(ResearchNote.created_at.desc())
+    )
+    result = await session.execute(stmt)
+    return result.scalars().first()

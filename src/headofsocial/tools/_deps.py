@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from headofsocial.domain.models import Asset, Brand, Channel, Plan, Post
+from headofsocial.domain.models import Asset, Brand, BrandAsset, Channel, Plan, Post
 from headofsocial.storage.db import SessionFactory, create_all, verify_writable
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,27 @@ def brand_to_dict(brand: Brand) -> dict:
         "differentiators": brand.differentiators or [],
         "voice_tone": brand.voice_tone,
         "content_pillars": brand.content_pillars or [],
+        "visual_style": brand.visual_style,
     }
+
+
+def brand_asset_to_dict(asset: BrandAsset) -> dict:
+    return {
+        "id": asset.id,
+        "brand_id": asset.brand_id,
+        "kind": str(asset.kind),
+        "file_path": asset.file_path,
+        "label": asset.label,
+        "is_primary": bool(asset.is_primary),
+        "url": brand_asset_url(asset.file_path),
+    }
+
+
+def brand_asset_url(path: str) -> str:
+    """Map a stored brand-asset path to a served URL (FastAPI mounts it at /brand-assets)."""
+    from pathlib import Path
+
+    return f"/brand-assets/{Path(path).name}"
 
 
 def channel_to_dict(channel: Channel) -> dict:

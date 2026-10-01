@@ -1,5 +1,15 @@
 // REST + SSE client for the Head of Social Media Agent API.
 
+export interface VisualStyle {
+  palette: string[];
+  style_keywords: string[];
+  image_tone: string;
+  typography_hint: string;
+  avoid: string[];
+  render_style: string;
+  logo_overlay?: { position: string; opacity: number; margin: number } | null;
+}
+
 export interface Brand {
   id: number;
   name: string;
@@ -13,6 +23,24 @@ export interface Brand {
   differentiators: unknown[];
   voice_tone: string | null;
   content_pillars: { name?: string; angle?: string }[];
+  visual_style: VisualStyle | null;
+}
+
+export type BrandAssetKind =
+  | "face_photo"
+  | "logo"
+  | "logo_dark"
+  | "product_photo"
+  | "reference_style";
+
+export interface BrandAsset {
+  id: number;
+  brand_id: number;
+  kind: BrandAssetKind;
+  file_path: string;
+  label: string | null;
+  is_primary: boolean;
+  url: string;
 }
 
 export interface Channel {
@@ -60,7 +88,7 @@ export interface Asset {
   status: string;
   depth: string | null;
   body: string | null;
-  media_spec: { media_type: string; prompt: string; position: number }[];
+  media_spec: { media_type: string; creative_brief: string; position: number }[];
   media: Media[];
 }
 
@@ -113,6 +141,13 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// Multipart upload (no JSON Content-Type header) for brand assets.
+async function uploadBrandAsset(brandId: number, form: FormData): Promise<BrandAsset> {
+  const res = await fetch(`${BASE}/brands/${brandId}/assets`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return res.json() as Promise<BrandAsset>;
+}
+
 export const api = {
   health: () => req<{ status: string; db: boolean }>("/healthz"),
 
@@ -120,6 +155,9 @@ export const api = {
   createBrand: (body: Partial<Brand> & { name: string; type_: string }) =>
     req<Brand>("/dashboard/brands", { method: "POST", body: JSON.stringify(body) }),
   getBrand: (id: number) => req<Brand>(`/dashboard/brands/${id}`),
+
+  listBrandAssets: (brandId: number) => req<BrandAsset[]>(`/brands/${brandId}/assets`),
+  uploadBrandAsset,
 
   listChannels: (brandId: number) => req<Channel[]>(`/dashboard/brands/${brandId}/channels`),
   createChannel: (brandId: number, body: { platform: string; handle: string; language?: string }) =>

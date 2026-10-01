@@ -19,37 +19,38 @@ async def create_asset(
     brand_id: int,
     body: str,
     depth: str = "text",
-    image_prompts: list[str] | None = None,
-    video_prompts: list[str] | None = None,
+    image_briefs: list[str] | None = None,
+    video_briefs: list[str] | None = None,
 ) -> dict:
-    """Create a content asset: channel copy plus prompts for the media to generate.
+    """Create a content asset: channel copy plus creative briefs for the media to generate.
 
-    Simple string lists keep model-generated tool arguments valid JSON.
+    Write only the *creative* part per item (subject/scene/mood) — the visual style is
+    applied centrally from the brand, so never describe style here.
 
     Args:
         brand_id: Target brand.
         body: Channel-native copy text (the caption/post body).
         depth: text | visual | carousel | motion | series | rich.
-        image_prompts: One prompt per image (max 5). Empty for text-only.
-        video_prompts: One prompt per video (max 2). Usually empty (video is fase 3).
+        image_briefs: One short creative brief per image (max 5). Empty for text-only.
+        video_briefs: One short creative brief per video (max 2). Usually empty (video is fase 3).
     """
     if depth not in ContentDepth._value2member_map_:
         return {"ok": False, "error": f"depth must be one of {[d.value for d in ContentDepth]}"}
-    images, videos = _as_list(image_prompts), _as_list(video_prompts)
+    images, videos = _as_list(image_briefs), _as_list(video_briefs)
     try:
         depth_enum = ContentDepth(depth)
         items = [
-            MediaSpecItem(media_type=MediaType.IMAGE, prompt=p, position=i)
-            for i, p in enumerate(images)
+            MediaSpecItem(media_type=MediaType.IMAGE, creative_brief=b, position=i)
+            for i, b in enumerate(images)
         ] + [
-            MediaSpecItem(media_type=MediaType.VIDEO, prompt=p, position=len(images) + i)
-            for i, p in enumerate(videos)
+            MediaSpecItem(media_type=MediaType.VIDEO, creative_brief=b, position=len(images) + i)
+            for i, b in enumerate(videos)
         ]
         media_service.check_media_budget(items)  # raises BudgetExceededError
     except media_service.BudgetExceededError as exc:
         return {"ok": False, "error": str(exc)}
     except (TypeError, ValueError) as exc:
-        return {"ok": False, "error": f"Invalid media prompts: {exc}"}
+        return {"ok": False, "error": f"Invalid media briefs: {exc}"}
 
     asset_type = media_service.content_type_for_depth(depth_enum)
     async def _fn(session):
@@ -116,7 +117,7 @@ async def check_media_budget(media_spec: list) -> dict:
     """Validate a media_spec against hard caps before generating. Returns violations or ok.
 
     Args:
-        media_spec: List of {media_type: image|video, prompt, position}.
+        media_spec: List of {media_type: image|video, creative_brief, position}.
     """
     try:
         items = [MediaSpecItem(**s) for s in media_spec]

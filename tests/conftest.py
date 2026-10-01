@@ -33,6 +33,8 @@ async def _clean_db():
             "assets",
             "plans",
             "channels",
+            "brand_assets",
+            "research_notes",
             "brands",
         ):
             await conn.execute(text(f"DELETE FROM {table}"))

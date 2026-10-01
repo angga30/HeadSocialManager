@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from headofsocial.api.routes.brand_assets import router as brand_assets_router
 from headofsocial.api.routes.chat import router as chat_router
 from headofsocial.api.routes.dashboard import router as dashboard_router
 from headofsocial.api.routes.health import router as health_router
@@ -44,12 +45,18 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router, prefix="/api")
     app.include_router(dashboard_router, prefix="/api")
+    app.include_router(brand_assets_router, prefix="/api")
     app.include_router(chat_router, prefix="/api")
 
     # Serve generated media (data/media) at /media so the UI can display images/videos.
     media_dir = settings.resolved_data_dir / "media"
     media_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
+
+    # Serve uploaded brand assets (data/brand_assets) so the Brands gallery can display them.
+    brand_assets_dir = settings.resolved_brand_assets_dir
+    brand_assets_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/brand-assets", StaticFiles(directory=str(brand_assets_dir)), name="brand-assets")
 
     # Serve the built SPA (web/dist) at /app when present; skip in dev (Vite serves it).
     dist = Path(__file__).resolve().parents[3] / "web" / "dist"

@@ -2,12 +2,13 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from headofsocial.domain.enums import (
     AssetStatus,
     AssetType,
+    BrandAssetKind,
     BrandType,
     ContentDepth,
     PlanStatus,
@@ -36,6 +37,8 @@ class Brand(Base):
     differentiators: Mapped[list | None] = mapped_column(JSON, nullable=True)
     voice_tone: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_pillars: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Locked visual identity (palette, keywords, tone, render style) — grounding for media (M1).
+    visual_style: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -46,6 +49,40 @@ class Brand(Base):
     plans: Mapped[list["Plan"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     assets: Mapped[list["Asset"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
     posts: Mapped[list["Post"]] = relationship(back_populates="brand", cascade="all, delete-orphan")
+    brand_assets: Mapped[list["BrandAsset"]] = relationship(
+        back_populates="brand", cascade="all, delete-orphan"
+    )
+
+
+class BrandAsset(Base):
+    """A real uploaded brand asset (face photo, logo, product photo, reference style) — M1."""
+
+    __tablename__ = "brand_assets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    brand_id: Mapped[int] = mapped_column(ForeignKey("brands.id"))
+    kind: Mapped[BrandAssetKind] = mapped_column(String(30))
+    file_path: Mapped[str] = mapped_column(String(500))
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    brand: Mapped[Brand] = relationship(back_populates="brand_assets")
+
+
+class ResearchNote(Base):
+    """Cached web-research result so monthly planning doesn't re-query (R1)."""
+
+    __tablename__ = "research_notes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    brand_id: Mapped[int] = mapped_column(ForeignKey("brands.id"))
+    kind: Mapped[str] = mapped_column(String(30))
+    query: Mapped[str] = mapped_column(Text)
+    results: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class Channel(Base):

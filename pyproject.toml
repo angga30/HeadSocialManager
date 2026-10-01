@@ -18,6 +18,8 @@ dependencies = [
     "pypdf",
     "python-docx",
     "python-dotenv",
+    "pillow",
+    "tavily-python",
 ]
 
 [dependency-groups]

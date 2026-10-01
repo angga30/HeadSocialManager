@@ -10,6 +10,7 @@ from headofsocial.tools import (
     channel_tools,
     history_tools,
     insights_tools,
+    research_tools,
 )
 
 
@@ -29,6 +30,7 @@ def create_planning_agent(history_note: str = "") -> Agent:
             insights_tools.get_engagement_insights,
             history_tools.get_content_history,
             calendar_tools.get_existing_plan,
+            research_tools.research_trends,
             calendar_tools.create_monthly_plan,
             calendar_tools.fan_out_plan,
             calendar_tools.list_scheduled_posts,

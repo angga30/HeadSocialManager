@@ -23,6 +23,12 @@ export interface UIMsg {
   agent?: string;
   steps?: UIToolStep[];
   activity?: string; // live status line while the agent works
+  /** Intermediate "thinking" text segments (closed by tool calls / agent handoffs). */
+  thoughts?: string[];
+  /** Final response text, promoted from the last thought segment on done. */
+  answer?: string;
+  /** Internal: is the last thought segment still accepting tokens? */
+  segOpen?: boolean;
 }
 
 export interface UIConv {
@@ -70,15 +76,28 @@ function handleEvent(id: number, event: ChatEvent) {
     if (!last || last.role !== "assistant") return c;
     const next: UIMsg = { ...last };
     switch (event.type) {
-      case "token":
-        next.text = last.text + (event.text ?? "");
+      case "token": {
+        const chunk = event.text ?? "";
+        next.text = last.text + chunk;
         next.activity = undefined;
+        if (last.answer) {
+          // Late tokens after done — append to the final answer.
+          next.answer = last.answer + chunk;
+        } else {
+          const segs = [...(last.thoughts ?? [])];
+          if (!last.segOpen || segs.length === 0) segs.push(chunk);
+          else segs[segs.length - 1] += chunk;
+          next.thoughts = segs;
+          next.segOpen = true;
+        }
         break;
+      }
       case "status":
         next.activity = event.state === "thinking" ? "berpikir…" : undefined;
         break;
       case "agent":
         next.agent = event.name;
+        next.segOpen = false; // handoff → next text starts a new thought segment
         break;
       case "tool": {
         const steps = [...(last.steps ?? [])];
@@ -91,6 +110,7 @@ function handleEvent(id: number, event: ChatEvent) {
           else steps.push({ name: event.name ?? "", summary: event.summary ?? "", status: "done" });
         }
         next.steps = steps;
+        next.segOpen = false; // tool call separates thinking from what follows
         break;
       }
       case "error":
@@ -98,11 +118,18 @@ function handleEvent(id: number, event: ChatEvent) {
         next.text = event.message ?? "Terjadi error.";
         next.activity = undefined;
         break;
-      case "done":
+      case "done": {
         next.pending = false;
         next.stopped = event.stopped;
         next.activity = undefined;
+        // The last thought segment IS the final response — promote it.
+        const segs = [...(last.thoughts ?? [])];
+        if (segs.length > 0) {
+          next.answer = segs.pop();
+          next.thoughts = segs;
+        }
         break;
+      }
     }
     msgs[idx] = next;
     return { ...c, messages: msgs };
@@ -119,6 +146,7 @@ function finish(id: number) {
         pending: false,
         activity: undefined,
         text: last.text || "_Agent tidak menghasilkan respons._",
+        answer: last.answer || last.text || "_Agent tidak menghasilkan respons._",
       };
     }
     return { ...c, status: last?.error ? "error" : "idle", messages: msgs };
@@ -210,8 +238,16 @@ export const convStore = {
       const msgs = [...c.messages];
       const last = msgs[msgs.length - 1];
       if (last && last.role === "assistant") {
-        const text = last.text ? last.text + STOP_MARKER : STOP_MARKER.trim();
-        msgs[msgs.length - 1] = { ...last, text, pending: false, stopped: true, activity: undefined };
+        const marker = last.text ? STOP_MARKER : STOP_MARKER.trim();
+        const text = last.text + marker;
+        msgs[msgs.length - 1] = {
+          ...last,
+          text,
+          answer: (last.answer ?? "") + marker,
+          pending: false,
+          stopped: true,
+          activity: undefined,
+        };
       }
       return { ...c, status: "idle", messages: msgs };
     });

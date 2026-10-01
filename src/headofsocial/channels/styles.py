@@ -15,6 +15,9 @@ class ChannelStyle:
     emoji_level: str  # "none" | "light" | "moderate" | "heavy"
     suggested_depths: list[ContentDepth]
     guidance: str
+    image_aspect: str = "1:1"
+    image_size: str = "1080x1080"
+    image_composition: str = "single clear subject, centered."
 
     def with_overrides(self, overrides: dict | None) -> "ChannelStyle":
         """Merge DB-style overrides onto this profile without mutating it."""
@@ -45,6 +48,9 @@ STYLES: dict[Platform, ChannelStyle] = {
             "short punchy paragraphs, emojis in moderation, and end with a CTA "
             "(follow, save, see bio). Do not repeat the visual with words."
         ),
+        image_aspect="4:5",
+        image_size="1080x1350",
+        image_composition="vertical portrait, single hero subject, generous headroom for the caption.",
     ),
     Platform.THREADS: ChannelStyle(
         platform=Platform.THREADS,
@@ -62,6 +68,9 @@ STYLES: dict[Platform, ChannelStyle] = {
             "point of view, and invite replies. Minimal or no hashtags. Avoid "
             "polished marketing language."
         ),
+        image_aspect="1:1",
+        image_size="1080x1080",
+        image_composition="square, casual and immediate, subject slightly off-center.",
     ),
     Platform.LINKEDIN: ChannelStyle(
         platform=Platform.LINKEDIN,
@@ -79,6 +88,9 @@ STYLES: dict[Platform, ChannelStyle] = {
             "the key idea in the first 2 lines (most read before 'see more'). Use 0-3 "
             "hashtags, minimal or no emoji, and end with a question or stance."
         ),
+        image_aspect="1.91:1",
+        image_size="1200x627",
+        image_composition="landscape, subject offset to one side, clean negative space for a headline.",
     ),
 }
 
@@ -97,6 +109,7 @@ def style_instruction_block(style: ChannelStyle, language: str) -> str:
         f"CAPTION LIMIT: {style.caption_limit_chars} characters\n"
         f"HASHTAGS: {lo}-{hi} relevant\n"
         f"EMOJI LEVEL: {style.emoji_level}\n"
+        f"IMAGE FORMAT: {style.image_aspect} ({style.image_size})\n"
         f"PREFERRED DEPTH: {', '.join(d.value for d in style.suggested_depths)}\n"
         f"GUIDANCE: {style.guidance}"
     )

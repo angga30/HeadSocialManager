@@ -2,13 +2,14 @@
 
 from google.adk.agents import Agent
 
-from headofsocial.agents.prompts import CONTENT_INSTRUCTION
+from headofsocial.agents.prompts import content_instruction
 from headofsocial.llm.models import get_model
 from headofsocial.tools import (
     brand_tools,
     calendar_tools,
     channel_tools,
     media_tools,
+    research_tools,
 )
 
 
@@ -16,7 +17,7 @@ def create_content_agent() -> Agent:
     return Agent(
         name="content_agent",
         model=get_model("content"),
-        instruction=CONTENT_INSTRUCTION,
+        instruction=content_instruction(),
         description=(
             "Digunakan untuk membuat konten (copy native per channel), memilih kedalaman "
             "konten (text/visual/carousel/motion/series/rich), dan generate media."
@@ -30,5 +31,6 @@ def create_content_agent() -> Agent:
             media_tools.generate_media,
             media_tools.check_media_budget,
             media_tools.attach_asset,
+            research_tools.search_web,
         ],
     )

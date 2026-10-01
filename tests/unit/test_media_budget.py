@@ -10,10 +10,12 @@ from headofsocial.services.media_service import BudgetExceededError
 
 def _spec(images: int, videos: int) -> list[MediaSpecItem]:
     items = [
-        MediaSpecItem(media_type=MediaType.IMAGE, prompt="img", position=i) for i in range(images)
+        MediaSpecItem(media_type=MediaType.IMAGE, creative_brief="img", position=i)
+        for i in range(images)
     ]
     items += [
-        MediaSpecItem(media_type=MediaType.VIDEO, prompt="vid", position=i) for i in range(videos)
+        MediaSpecItem(media_type=MediaType.VIDEO, creative_brief="vid", position=i)
+        for i in range(videos)
     ]
     return items
 

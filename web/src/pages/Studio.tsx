@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { api, type Asset } from "../lib/api";
 import { useBrands } from "../lib/useBrands";
+import BrandPicker from "../components/BrandPicker";
+import Button from "../components/ui/Button";
+import Card, { CardTitle } from "../components/ui/Card";
+import { Input, Select, Textarea } from "../components/ui/Field";
+import PageHeader from "../components/PageHeader";
+import StatusMsg, { type MsgKind } from "../components/StatusMsg";
 
 const DEPTHS = ["text", "visual", "carousel", "motion", "series", "rich"];
+
+interface Msg {
+  kind: MsgKind;
+  text: string;
+}
 
 export default function Studio() {
   const { brands, selectedId, select } = useBrands();
@@ -11,14 +22,14 @@ export default function Studio() {
   const [depth, setDepth] = useState("visual");
   const [prompt, setPrompt] = useState("");
   const [imageCount, setImageCount] = useState(1);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<Msg | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = async (brandId: number) => {
     try {
       setAssets(await api.listAssets(brandId));
     } catch (e) {
-      setMsg(`⚠️ ${e}`);
+      setMsg({ kind: "err", text: String(e) });
     }
   };
 
@@ -36,22 +47,22 @@ export default function Studio() {
         imageCount > 0
           ? Array.from({ length: imageCount }, (_, i) => ({
               media_type: "image",
-              prompt: prompt || copy || "social media visual",
+              creative_brief: prompt || copy || "social media visual",
               position: i,
             }))
           : [];
       const asset = await api.createAsset({ brand_id: selectedId, body: copy, depth, media_spec });
       if (media_spec.length) {
         const res = await api.generateAsset(asset.id);
-        setMsg(`✅ Asset #${asset.id} dibuat, ${res.media.length} gambar digenerate.`);
+        setMsg({ kind: "ok", text: `Asset #${asset.id} dibuat, ${res.media.length} gambar digenerate.` });
       } else {
-        setMsg(`✅ Asset #${asset.id} dibuat (teks).`);
+        setMsg({ kind: "ok", text: `Asset #${asset.id} dibuat (teks).` });
       }
       setCopy("");
       setPrompt("");
       await load(selectedId);
     } catch (e) {
-      setMsg(`⚠️ ${e}`);
+      setMsg({ kind: "err", text: String(e) });
     } finally {
       setBusy(false);
     }
@@ -59,83 +70,100 @@ export default function Studio() {
 
   return (
     <div>
-      <h2 className="page-title">Content Studio — image generation</h2>
-      <div className="row" style={{ marginBottom: 14 }}>
-        <span className="muted">Brand:</span>
-        <select value={selectedId ?? ""} onChange={(e) => select(Number(e.target.value))}>
-          {brands.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+      <PageHeader>Content Studio — image generation</PageHeader>
+      <div className="mb-4">
+        <BrandPicker brands={brands} selectedId={selectedId} onSelect={select} />
       </div>
 
-      <div className="grid-2">
-        <div className="card">
-          <h3>Buat konten</h3>
-          <div className="row" style={{ flexDirection: "column", alignItems: "stretch" }}>
-            <textarea
-              placeholder="Caption / copy"
-              rows={3}
-              value={copy}
-              onChange={(e) => setCopy(e.target.value)}
-              style={{ background: "var(--panel-2)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: 9 }}
-            />
-            <select value={depth} onChange={(e) => setDepth(e.target.value)}>
-              {DEPTHS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <input placeholder="Prompt gambar" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-            <label className="muted">
-              Jumlah gambar (maks 5):{" "}
-              <input
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[340px_1fr]">
+        <Card>
+          <CardTitle>Buat konten</CardTitle>
+          <div className="flex flex-col gap-2.5">
+            <div>
+              <label htmlFor="copy" className="mb-1 block text-[13px] text-mute">
+                Caption / copy
+              </label>
+              <Textarea id="copy" rows={3} value={copy} onChange={(e) => setCopy(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="depth" className="mb-1 block text-[13px] text-mute">
+                Format
+              </label>
+              <Select
+                id="depth"
+                className="w-full"
+                value={depth}
+                onChange={(e) => setDepth(e.target.value)}
+              >
+                {DEPTHS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="brief" className="mb-1 block text-[13px] text-mute">
+                Creative brief
+              </label>
+              <Input
+                id="brief"
+                placeholder="Subjek / adegan"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="count" className="mb-1 block text-[13px] text-mute">
+                Jumlah gambar (maks 5)
+              </label>
+              <Input
+                id="count"
                 type="number"
                 min={0}
                 max={5}
                 value={imageCount}
                 onChange={(e) => setImageCount(Math.max(0, Math.min(5, Number(e.target.value))))}
-                style={{ width: 70 }}
+                className="w-20"
               />
-            </label>
-            <button className="primary" onClick={createAndGenerate} disabled={busy || selectedId == null}>
+            </div>
+            <Button onClick={createAndGenerate} disabled={busy || selectedId == null}>
               Buat + generate gambar
-            </button>
-            {msg && <div className={`msg ${msg.startsWith("⚠️") ? "err" : "ok"}`}>{msg}</div>}
-            <p className="muted">
-              Catatan: hasil nyata butuh <code>HEADSOF_MEDIA_PROVIDER=litellm</code> + API key. Default
-              mock menghasilkan file placeholder.
+            </Button>
+            {msg && <StatusMsg kind={msg.kind}>{msg.text}</StatusMsg>}
+            <p className="text-[13px] text-mute">
+              Catatan: hasil nyata butuh <code className="font-mono text-xs">HEADSOF_MEDIA_PROVIDER=litellm</code>{" "}
+              + API key. Default mock menghasilkan file placeholder.
             </p>
           </div>
-        </div>
+        </Card>
 
-        <div className="card">
-          <h3>Assets ({assets.length})</h3>
-          {assets.map((a) => (
-            <div key={a.id} style={{ borderTop: "1px solid var(--border)", padding: "10px 0" }}>
-              <div className="row">
-                <span className="badge">{a.depth ?? a.type}</span>
-                <span className="muted">#{a.id}</span>
+        <Card>
+          <CardTitle>Assets ({assets.length})</CardTitle>
+          <div className="divide-y divide-line">
+            {assets.map((a) => (
+              <div key={a.id} className="py-2.5 first:pt-0">
+                <div className="flex items-center gap-2">
+                  <span className="badge">{a.depth ?? a.type}</span>
+                  <span className="text-[13px] text-mute">#{a.id}</span>
+                </div>
+                {a.body && <p className="my-1.5 text-sm">{a.body}</p>}
+                <div className="flex flex-wrap gap-2">
+                  {a.media.map((m) => (
+                    <img
+                      key={m.filename}
+                      src={m.url}
+                      alt={m.filename}
+                      className="h-24 w-24 rounded-md border border-line object-cover"
+                    />
+                  ))}
+                  {a.media.length === 0 && <span className="text-[13px] text-mute">tidak ada media</span>}
+                </div>
               </div>
-              {a.body && <p style={{ margin: "6px 0" }}>{a.body}</p>}
-              <div className="row">
-                {a.media.map((m) => (
-                  <img
-                    key={m.filename}
-                    src={m.url}
-                    alt={m.filename}
-                    style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }}
-                  />
-                ))}
-                {a.media.length === 0 && <span className="muted">tidak ada media</span>}
-              </div>
-            </div>
-          ))}
-          {assets.length === 0 && <p className="muted">Belum ada asset.</p>}
-        </div>
+            ))}
+          </div>
+          {assets.length === 0 && <p className="text-[13px] text-mute">Belum ada asset.</p>}
+        </Card>
       </div>
     </div>
   );

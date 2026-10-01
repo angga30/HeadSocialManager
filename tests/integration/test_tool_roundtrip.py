@@ -35,13 +35,14 @@ async def test_publish_due_publishes_scheduled(session, brand, channel):
 async def test_media_spec_to_asset_and_generate(session, brand):
     asset = await media_tools.create_asset(
         brand.id, "caption body", depth="carousel",
-        image_prompts=["coffee cup", "coffee bag"],
+        image_briefs=["coffee cup", "coffee bag"],
     )
     assert asset["depth"] == "carousel"
     generated = await media_tools.generate_media(asset["id"])
     assert generated["ok"] is True
-    assert len(generated["media_files"]) == 2  # one per prompt
+    assert len(generated["media_files"]) == 2  # one per brief
     assert len(asset["media_spec"]) == 2
+    assert asset["media_spec"][0]["creative_brief"] == "coffee cup"
 
 
 async def test_agent_importability():
