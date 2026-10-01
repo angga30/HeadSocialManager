@@ -1,0 +1,49 @@
+{
+  "positioning_statement": "Kopi Nusantara membantu pencinta kopi perkotaan menikmati kopi single-origin Indonesia yang segar, transparan, dan berdampak langsung bagi petani.",
+  "target_audience": [
+    "Pencinta kopi usia 22–35 tahun yang mulai belajar menyeduh sendiri di rumah.",
+    "Konsumen sadar asal-usul yang menghargai transparansi rantai pasok.",
+    "Pekerja urban yang mencari kopi berkualitas untuk ritual pagi mereka."
+  ],
+  "differentiators": [
+    "Direct trade dengan petani di atas harga pasar.",
+    "Tanggal roasting tercantum di setiap kemasan (freshness terukur).",
+    "Transparansi penuh profil tiap origin: petani, ketinggian, proses."
+  ],
+  "voice_tone": "Hangat, jujur, dan edukatif. Bicara seperti teman yang berbagi ilmu, bukan penjual yang menggurui. Boleh ringan, selalu menghormati petani dan proses.",
+  "content_pillars": [
+    {
+      "name": "Edukasi Seduh",
+      "angle": "Cara menyeduh yang benar dan tips kopi rumahan.",
+      "example_angles": ["Resep V60 2 menit", "Rasio kopi-air", "Mengenal tingkat giling"]
+    },
+    {
+      "name": "Behind the Roast",
+      "angle": "Proses roasting, pemilihan biji, dan cerita dari roastery.",
+      "example_angles": ["Dari biji hijau ke cangkir", "Profil roast light vs medium"]
+    },
+    {
+      "name": "Origin & Petani",
+      "angle": "Kisah petani dan asal-usul single-origin.",
+      "example_angles": ["Petani Gayo", "Ketinggian Kintamani", "Proses wet-hull"]
+    },
+    {
+      "name": "Komunitas",
+      "angle": "Pelanggan, event, dan budaya ngopi bareng.",
+      "example_angles": ["Kisah pelanggan", "Ngopi bareng bulanan"]
+    }
+  ],
+  "visual_style": {
+    "palette": ["#2B2A28", "#C08552", "#F4EDE4"],
+    "style_keywords": ["warm", "textured", "candid", "artisanal", "natural light"],
+    "image_tone": "warm",
+    "typography_hint": "Serif untuk headline, sans-serif bersih untuk body.",
+    "avoid": ["neon colors", "synthetic studio look", "heavy text overlays", "airbrushed skin"],
+    "render_style": "photography",
+    "logo_overlay": {
+      "position": "bottom-right",
+      "opacity": 0.85,
+      "margin": 24
+    }
+  }
+}

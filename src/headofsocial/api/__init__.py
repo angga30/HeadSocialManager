@@ -1,0 +1,1 @@
+"""FastAPI skeleton — shared services, dashboard-ready seam."""

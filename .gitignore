@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# uv
+.uv/
+
+# Project data (sqlite, docs, generated media) — ignored by default
+data/*
+*.db
+*.sqlite3
+
+# ...except example content that is committed
+!data/docs/
+!data/docs/**
+!data/examples/
+!data/examples/**
+!data/media/
+data/media/*
+!data/media/README.md
+
+# Env
+.env
+
+# Web frontend
+web/node_modules/
+web/dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.commandcode/

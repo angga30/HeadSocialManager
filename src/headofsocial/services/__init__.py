@@ -1,0 +1,1 @@
+"""Business-logic services, UI-agnostic (reused by TUI, agents, and future dashboard)."""

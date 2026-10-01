@@ -1,0 +1,51 @@
+[project]
+name = "headofsocial"
+version = "0.1.0"
+description = "Multi-agent Head of Social Media — branding, content planning, channel-native content, scheduled publishing."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "google-adk",
+    "litellm",
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2.0",
+    "aiosqlite",
+    "httpx",
+    "pydantic-settings>=2.0",
+    "textual>=0.80",
+    "apscheduler>=3.10",
+    "pypdf",
+    "python-docx",
+    "python-dotenv",
+    "pillow",
+    "tavily-python",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/headofsocial"]
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

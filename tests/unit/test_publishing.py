@@ -1,0 +1,80 @@
+"""Publishing flow — publish a post, record metrics, flip status."""
+
+from datetime import UTC, datetime, timedelta
+
+from headofsocial.domain.enums import ContentDepth, PostStatus
+from headofsocial.domain.models import Asset, Post
+from headofsocial.services import publishing_service
+from headofsocial.services.publishing_service import simulate_metrics, strip_research_sources
+
+
+def test_strip_research_sources():
+    body = "Klaim A.\nSumber: https://x\n\nSumber: https://y\nPenutup"
+    assert strip_research_sources(body) == "Klaim A.\n\nPenutup"
+    assert strip_research_sources(None) is None
+
+
+async def test_publish_keeps_sources_in_stored_draft(session, brand, channel):
+    asset = Asset(
+        brand_id=brand.id,
+        type="text",
+        depth=ContentDepth.TEXT,
+        body="Klaim.\nSumber: https://example.com",
+    )
+    session.add(asset)
+    await session.commit()
+    post = Post(
+        brand_id=brand.id,
+        channel_id=channel.id,
+        asset_id=asset.id,
+        status=PostStatus.SCHEDULED,
+        scheduled_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
+    )
+    session.add(post)
+    await session.commit()
+
+    await publishing_service.publish_post(session, post)
+
+    # Sources are stripped from the published view but the draft keeps them for review.
+    stored = await session.get(Asset, asset.id)
+    assert "Sumber:" in (stored.body or "")
+
+
+async def test_simulate_metrics_shape():
+    data = {"post_id": 1, "platform": "instagram"}
+    m = simulate_metrics(**data)
+    assert m["post_id"] == 1
+    assert m["platform"] == "instagram"
+    for key in ("impressions", "reach", "likes", "comments", "shares", "saves"):
+        assert key in m
+
+
+async def test_publish_post_flips_status_and_metrics(session, brand, channel):
+    asset = Asset(brand_id=brand.id, type="text", depth=ContentDepth.TEXT, body="hello")
+    session.add(asset)
+    await session.commit()
+
+    async def _mk_post():
+        from headofsocial.domain.models import Post
+
+        post = Post(
+            brand_id=brand.id,
+            channel_id=channel.id,
+            asset_id=asset.id,
+            status=PostStatus.SCHEDULED,
+            scheduled_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
+        )
+        session.add(post)
+        await session.commit()
+        return post
+
+    post = await _mk_post()
+    result = await publishing_service.publish_post(session, post)
+
+    assert result.status == PostStatus.PUBLISHED
+    assert result.publish_result["ok"] is True
+    assert result.publish_result["external_id"]
+    assert result.published_at is not None
+    # metrics were recorded and are visible on the returned object
+    assert len(result.metrics) == 1
+    assert result.metrics[0].likes > 0
